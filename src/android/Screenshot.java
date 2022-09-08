@@ -32,18 +32,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-
 public class Screenshot extends CordovaPlugin {
     private CallbackContext mCallbackContext;
     private String mAction;
     private JSONArray mArgs;
 
-
     private String mFormat;
     private String mFileName;
     private Integer mQuality;
 
-    protected final static String[] PERMISSIONS = {Manifest.permission.WRITE_EXTERNAL_STORAGE};
     public static final int PERMISSION_DENIED_ERROR = 20;
     public static final int SAVE_SCREENSHOT_SEC = 0;
 
@@ -75,7 +72,7 @@ public class Screenshot extends CordovaPlugin {
         if (isCrosswalk) {
             webView.getPluginManager().postMessage("captureXWalkBitmap", this);
         } else {
-            View view = webView.getView();//.getRootView();
+            View view = webView.getView();// .getRootView();
             view.setDrawingCacheEnabled(true);
             bitmap = Bitmap.createBitmap(view.getDrawingCache());
             view.setDrawingCacheEnabled(false);
@@ -94,12 +91,8 @@ public class Screenshot extends CordovaPlugin {
 
     private void saveScreenshot(Bitmap bitmap, String format, String fileName, Integer quality) {
         try {
-            File folder = new File(Environment.getExternalStorageDirectory(), "Pictures");
-            if (!folder.exists()) {
-                folder.mkdirs();
-            }
-
-            File f = new File(folder, fileName + "." + format);
+            File f = new File(super.cordova.getActivity().getApplicationContext().getFilesDir(),
+                    fileName + "." + format);
 
             FileOutputStream fos = new FileOutputStream(f);
             if (format.equals("png")) {
@@ -153,7 +146,7 @@ public class Screenshot extends CordovaPlugin {
         }
     }
 
-    public void saveScreenshot() throws JSONException{
+    public void saveScreenshot() throws JSONException {
         mFormat = (String) mArgs.get(0);
         mQuality = (Integer) mArgs.get(1);
         mFileName = (String) mArgs.get(2);
@@ -174,7 +167,7 @@ public class Screenshot extends CordovaPlugin {
         });
     }
 
-    public void getScreenshotAsURI() throws JSONException{
+    public void getScreenshotAsURI() throws JSONException {
         mQuality = (Integer) mArgs.get(0);
 
         super.cordova.getActivity().runOnUiThread(new Runnable() {
@@ -188,25 +181,27 @@ public class Screenshot extends CordovaPlugin {
         });
     }
 
-     public void getScreenshotAsURISync() throws JSONException{
+    public void getScreenshotAsURISync() throws JSONException {
         mQuality = (Integer) mArgs.get(0);
-        
-        Runnable r = new Runnable(){
+
+        Runnable r = new Runnable() {
             @Override
             public void run() {
                 Bitmap bitmap = getBitmap();
                 if (bitmap != null) {
                     getScreenshotAsURI(bitmap, mQuality);
                 }
-                synchronized (this) { this.notify(); }
+                synchronized (this) {
+                    this.notify();
+                }
             }
         };
 
         synchronized (r) {
             super.cordova.getActivity().runOnUiThread(r);
-            try{
+            try {
                 r.wait();
-            } catch (InterruptedException e){
+            } catch (InterruptedException e) {
                 mCallbackContext.error(e.getMessage());
             }
         }
@@ -221,16 +216,12 @@ public class Screenshot extends CordovaPlugin {
         mArgs = args;
 
         if (action.equals("saveScreenshot")) {
-            if(PermissionHelper.hasPermission(this, PERMISSIONS[0])) {
-                saveScreenshot();
-            } else {
-                PermissionHelper.requestPermissions(this, SAVE_SCREENSHOT_SEC, PERMISSIONS);
-            }
+            saveScreenshot();
             return true;
         } else if (action.equals("getScreenshotAsURI")) {
             getScreenshotAsURI();
             return true;
-        } else if (action.equals("getScreenshotAsURISync")){
+        } else if (action.equals("getScreenshotAsURISync")) {
             getScreenshotAsURISync();
             return true;
         }
@@ -239,23 +230,18 @@ public class Screenshot extends CordovaPlugin {
     }
 
     public void onRequestPermissionResult(int requestCode, String[] permissions,
-                                          int[] grantResults) throws JSONException
-    {
-        for(int r:grantResults)
-        {
-            if(r == PackageManager.PERMISSION_DENIED)
-            {
+            int[] grantResults) throws JSONException {
+        for (int r : grantResults) {
+            if (r == PackageManager.PERMISSION_DENIED) {
                 mCallbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, PERMISSION_DENIED_ERROR));
                 return;
             }
         }
-        switch(requestCode)
-        {
+        switch (requestCode) {
             case SAVE_SCREENSHOT_SEC:
                 saveScreenshot();
                 break;
         }
     }
-
 
 }
