@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin id="com.darktalker.cordova.screenshot" version="0.1.6" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
-    <name>com.darktalker.cordova.screenshot</name>
-    <description>screenshot PhoneGap Plugin for Android</description>
+<plugin id="cordova-screenshot" version="0.1.6" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+    <name>Cordova screenshot</name>
+    <description>screenshot PhoneGap Plugin for Android and iOS</description>
     <license>MIT</license>
     <keywords>cordova,screenshot,ecosystem:cordova,cordova-android,cordova-ios,cordova-osx</keywords>
     <repo>git+https://github.com/platogo/cordova-screenshot.git</repo>
