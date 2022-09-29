@@ -70,15 +70,13 @@ CGFloat statusBarHeight()
 
 - (void)saveScreenshot:(CDVInvokedUrlCommand*)command
 {
-	NSString *filename = [command.arguments objectAtIndex:2];
-	NSNumber *quality = [command.arguments objectAtIndex:1];
-
+	NSString *filename = [command.arguments objectAtIndex:0];
 	NSString *path = [NSString stringWithFormat:@"%@.jpg",filename];
 	NSString *jpgPath = [NSTemporaryDirectory() stringByAppendingPathComponent:path];
 
 	UIImage *image = [self getScreenshot];
-	NSData *imageData = UIImageJPEGRepresentation(image,[quality floatValue]);
-    NSString *callbackId = command.callbackId;
+	NSData *imageData = UIImageJPEGRepresentation(image, 100);
+	[imageData writeToFile:jpgPath atomically:NO];
 
 	ContextInfo *contextInfo = [[ContextInfo alloc] init];
     contextInfo.callbackId = callbackId;
