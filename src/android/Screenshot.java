@@ -95,6 +95,7 @@ public class Screenshot extends CordovaPlugin {
     private void saveScreenshot(Bitmap bitmap, String format, String fileName, Integer quality) {
         try {
             File folder = new File(Environment.getExternalStorageDirectory(), "Pictures");
+            //  File folder = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ? Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) : mContext.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
             if (!folder.exists()) {
                 folder.mkdirs();
             }
@@ -221,10 +222,32 @@ public class Screenshot extends CordovaPlugin {
         mArgs = args;
 
         if (action.equals("saveScreenshot")) {
-            if(PermissionHelper.hasPermission(this, PERMISSIONS[0])) {
-                saveScreenshot();
-            } else {
-                PermissionHelper.requestPermissions(this, SAVE_SCREENSHOT_SEC, PERMISSIONS);
+            // Check if we are on Android 11 (Android R, sdk 29) or higher, because if we are then we need to check for permissions in a different way
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // Check if permissions exist
+                if (Environment.isExternalStorageManager()) {
+                    saveScreenshot();
+                } else {
+                    try {
+                        // The intenet describes what we want to do. In this case ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION will open the settings where the user can give permission so we can access file system
+                        Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                        intent.addCategory("android.intent.category.DEFAULT");
+                        intent.setData(Uri.parse(String.format("package:%s",mContext.getPackageName())));
+                        // The 2296 is just a random number, can be anything
+                        this.cordova.startActivityForResult(this, intent, 2296);
+                    } catch (Exception e) {
+                        Intent intent = new Intent();
+                        intent.setAction(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                        this.cordova.startActivityForResult(this, intent, 2296);
+                    }
+                }
+            }
+            else {
+                if(PermissionHelper.hasPermission(this, PERMISSIONS[0])) {
+                    saveScreenshot();
+                } else {
+                    PermissionHelper.requestPermissions(this, SAVE_SCREENSHOT_SEC, PERMISSIONS);
+                }
             }
             return true;
         } else if (action.equals("getScreenshotAsURI")) {
@@ -257,5 +280,19 @@ public class Screenshot extends CordovaPlugin {
         }
     }
 
-
+    // Returns free space in bytes.
+    // TODO: For now unsued. Will be needed in the future. We can check the size of a file with lenght() and then compare to this the number returned by the function below.
+    public static long getAvailableInternalMemorySize() {
+        File path = Environment.getDataDirectory();
+        StatFs stat = new StatFs(path.getPath());
+        long blockSize, availableBlocks;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            blockSize = stat.getBlockSizeLong();
+            availableBlocks = stat.getAvailableBlocksLong();
+        } else {
+            blockSize = stat.getBlockSize();
+            availableBlocks = stat.getAvailableBlocks();
+        }
+        return availableBlocks * blockSize;
+    }
 }
