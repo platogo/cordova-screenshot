@@ -9,16 +9,20 @@
 package com.darktalker.cordova.screenshot;
 
 import android.Manifest;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
+import android.os.StatFs;
+import android.provider.MediaStore;
 import android.util.Base64;
-import android.view.TextureView;
 import android.view.View;
-import android.view.ViewGroup;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
@@ -31,19 +35,19 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-
+import java.io.OutputStream;
+import java.util.Objects;
 
 public class Screenshot extends CordovaPlugin {
     private CallbackContext mCallbackContext;
     private String mAction;
     private JSONArray mArgs;
 
-
     private String mFormat;
     private String mFileName;
     private Integer mQuality;
 
-    protected final static String[] PERMISSIONS = {Manifest.permission.WRITE_EXTERNAL_STORAGE};
+    protected final static String[] PERMISSIONS = { Manifest.permission.WRITE_EXTERNAL_STORAGE };
     public static final int PERMISSION_DENIED_ERROR = 20;
     public static final int SAVE_SCREENSHOT_SEC = 0;
 
@@ -75,7 +79,7 @@ public class Screenshot extends CordovaPlugin {
         if (isCrosswalk) {
             webView.getPluginManager().postMessage("captureXWalkBitmap", this);
         } else {
-            View view = webView.getView();//.getRootView();
+            View view = webView.getView();// .getRootView();
             view.setDrawingCacheEnabled(true);
             bitmap = Bitmap.createBitmap(view.getDrawingCache());
             view.setDrawingCacheEnabled(false);
@@ -94,27 +98,57 @@ public class Screenshot extends CordovaPlugin {
 
     private void saveScreenshot(Bitmap bitmap, String format, String fileName, Integer quality) {
         try {
-            File folder = new File(Environment.getExternalStorageDirectory(), "Pictures");
-            //  File folder = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ? Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) : mContext.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-            if (!folder.exists()) {
-                folder.mkdirs();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+                values.put(MediaStore.MediaColumns.MIME_TYPE, String.format("image/%s", format));
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
+
+                Context context = cordova.getContext();
+                ContentResolver resolver = context.getContentResolver();
+
+                Uri imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                try {
+                    OutputStream fos = resolver.openOutputStream(Objects.requireNonNull(imageUri));
+                    if (format.equals("png")) {
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                    } else if (format.equals("jpg")) {
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, quality == null ? 100 : quality, fos);
+                    }
+                    JSONObject jsonRes = new JSONObject();
+                    jsonRes.put("filePath", imageUri);
+                    PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
+                    mCallbackContext.sendPluginResult(result);
+                    fos.close();
+                } catch (Exception e) {
+                    mCallbackContext.error(e.getMessage());
+                }
+
+            } else {
+                File folder = new File(Environment.getExternalStorageDirectory(), "Pictures");
+                // File folder = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ?
+                // Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                // : mContext.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+                if (!folder.exists()) {
+                    folder.mkdirs();
+                }
+
+                File f = new File(folder, fileName + "." + format);
+
+                FileOutputStream fos = new FileOutputStream(f);
+                if (format.equals("png")) {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                } else if (format.equals("jpg")) {
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality == null ? 100 : quality, fos);
+                }
+                JSONObject jsonRes = new JSONObject();
+                jsonRes.put("filePath", f.getAbsolutePath());
+                PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
+                mCallbackContext.sendPluginResult(result);
+
+                scanPhoto(f.getAbsolutePath());
+                fos.close();
             }
-
-            File f = new File(folder, fileName + "." + format);
-
-            FileOutputStream fos = new FileOutputStream(f);
-            if (format.equals("png")) {
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-            } else if (format.equals("jpg")) {
-                bitmap.compress(Bitmap.CompressFormat.JPEG, quality == null ? 100 : quality, fos);
-            }
-            JSONObject jsonRes = new JSONObject();
-            jsonRes.put("filePath", f.getAbsolutePath());
-            PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
-            mCallbackContext.sendPluginResult(result);
-
-            scanPhoto(f.getAbsolutePath());
-            fos.close();
         } catch (JSONException e) {
             mCallbackContext.error(e.getMessage());
 
@@ -154,7 +188,7 @@ public class Screenshot extends CordovaPlugin {
         }
     }
 
-    public void saveScreenshot() throws JSONException{
+    public void saveScreenshot() throws JSONException {
         mFormat = (String) mArgs.get(0);
         mQuality = (Integer) mArgs.get(1);
         mFileName = (String) mArgs.get(2);
@@ -175,7 +209,7 @@ public class Screenshot extends CordovaPlugin {
         });
     }
 
-    public void getScreenshotAsURI() throws JSONException{
+    public void getScreenshotAsURI() throws JSONException {
         mQuality = (Integer) mArgs.get(0);
 
         super.cordova.getActivity().runOnUiThread(new Runnable() {
@@ -189,25 +223,27 @@ public class Screenshot extends CordovaPlugin {
         });
     }
 
-     public void getScreenshotAsURISync() throws JSONException{
+    public void getScreenshotAsURISync() throws JSONException {
         mQuality = (Integer) mArgs.get(0);
-        
-        Runnable r = new Runnable(){
+
+        Runnable r = new Runnable() {
             @Override
             public void run() {
                 Bitmap bitmap = getBitmap();
                 if (bitmap != null) {
                     getScreenshotAsURI(bitmap, mQuality);
                 }
-                synchronized (this) { this.notify(); }
+                synchronized (this) {
+                    this.notify();
+                }
             }
         };
 
         synchronized (r) {
             super.cordova.getActivity().runOnUiThread(r);
-            try{
+            try {
                 r.wait();
-            } catch (InterruptedException e){
+            } catch (InterruptedException e) {
                 mCallbackContext.error(e.getMessage());
             }
         }
@@ -222,28 +258,12 @@ public class Screenshot extends CordovaPlugin {
         mArgs = args;
 
         if (action.equals("saveScreenshot")) {
-            // Check if we are on Android 11 (Android R, sdk 29) or higher, because if we are then we need to check for permissions in a different way
+            // Check if we are on Android 11 (Android R, sdk 29) or higher, because if we
+            // are then we need to check for permissions in a different way
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Check if permissions exist
-                if (Environment.isExternalStorageManager()) {
-                    saveScreenshot();
-                } else {
-                    try {
-                        // The intenet describes what we want to do. In this case ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION will open the settings where the user can give permission so we can access file system
-                        Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                        intent.addCategory("android.intent.category.DEFAULT");
-                        intent.setData(Uri.parse(String.format("package:%s",mContext.getPackageName())));
-                        // The 2296 is just a random number, can be anything
-                        this.cordova.startActivityForResult(this, intent, 2296);
-                    } catch (Exception e) {
-                        Intent intent = new Intent();
-                        intent.setAction(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                        this.cordova.startActivityForResult(this, intent, 2296);
-                    }
-                }
-            }
-            else {
-                if(PermissionHelper.hasPermission(this, PERMISSIONS[0])) {
+                saveScreenshot();
+            } else {
+                if (PermissionHelper.hasPermission(this, PERMISSIONS[0])) {
                     saveScreenshot();
                 } else {
                     PermissionHelper.requestPermissions(this, SAVE_SCREENSHOT_SEC, PERMISSIONS);
@@ -253,7 +273,7 @@ public class Screenshot extends CordovaPlugin {
         } else if (action.equals("getScreenshotAsURI")) {
             getScreenshotAsURI();
             return true;
-        } else if (action.equals("getScreenshotAsURISync")){
+        } else if (action.equals("getScreenshotAsURISync")) {
             getScreenshotAsURISync();
             return true;
         }
@@ -262,37 +282,29 @@ public class Screenshot extends CordovaPlugin {
     }
 
     public void onRequestPermissionResult(int requestCode, String[] permissions,
-                                          int[] grantResults) throws JSONException
-    {
-        for(int r:grantResults)
-        {
-            if(r == PackageManager.PERMISSION_DENIED)
-            {
+            int[] grantResults) throws JSONException {
+        for (int r : grantResults) {
+            if (r == PackageManager.PERMISSION_DENIED) {
                 mCallbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, PERMISSION_DENIED_ERROR));
                 return;
             }
         }
-        switch(requestCode)
-        {
-            case SAVE_SCREENSHOT_SEC:
-                saveScreenshot();
-                break;
+        if (requestCode == SAVE_SCREENSHOT_SEC) {
+            saveScreenshot();
         }
     }
 
     // Returns free space in bytes.
-    // TODO: For now unsued. Will be needed in the future. We can check the size of a file with lenght() and then compare to this the number returned by the function below.
+    // TODO: For now unused. Will be needed in the future. We can check the size of
+    // a file with length() and then compare to this the number returned by the
+    // function below.
     public static long getAvailableInternalMemorySize() {
         File path = Environment.getDataDirectory();
         StatFs stat = new StatFs(path.getPath());
         long blockSize, availableBlocks;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            blockSize = stat.getBlockSizeLong();
-            availableBlocks = stat.getAvailableBlocksLong();
-        } else {
-            blockSize = stat.getBlockSize();
-            availableBlocks = stat.getAvailableBlocks();
-        }
+        blockSize = stat.getBlockSizeLong();
+        availableBlocks = stat.getAvailableBlocksLong();
+
         return availableBlocks * blockSize;
     }
 }
