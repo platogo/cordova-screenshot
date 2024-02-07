@@ -32,14 +32,13 @@ CGFloat statusBarHeight()
     return MIN(statusBarSize.width, statusBarSize.height);
 }
 
-- (UIImage *)getScreenshot
-{
-	UIWindow *keyWindow = [[UIApplication sharedApplication] keyWindow];
-	CGRect rect = [keyWindow bounds];
-	UIGraphicsBeginImageContextWithOptions(rect.size, YES, 0);
-	[keyWindow drawViewHierarchyInRect:keyWindow.bounds afterScreenUpdates:NO];
-	UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
-	UIGraphicsEndImageContext();
+- (UIImage *)getScreenshot {
+  UIWindow *keyWindow = [[UIApplication sharedApplication] keyWindow];
+  CGRect rect = [keyWindow bounds];
+  UIGraphicsBeginImageContextWithOptions(rect.size, YES, 0);
+  [keyWindow drawViewHierarchyInRect:keyWindow.bounds afterScreenUpdates:NO];
+  UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
+  UIGraphicsEndImageContext();
 
 	// cut the status bar from the screenshot
 	CGRect smallRect = CGRectMake (0,statusBarHeight()*img.scale,rect.size.width*img.scale,rect.size.height*img.scale);
@@ -56,6 +55,12 @@ CGFloat statusBarHeight()
 	CGImageRelease(subImageRef);
 
 	return cropped;
+}
+
+- (CGFloat)getAvailableInternalMemorySize:(CDVInvokedUrlCommand*)command {
+	long long freeSpace = [[[[NSFileManager defaultManager] attributesOfFileSystemForPath:NSHomeDirectory() error:nil] objectForKey:NSFileSystemFreeSize] longLongValue];
+	CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDouble:freeSpace];
+	[self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
 - (void)saveScreenshot:(CDVInvokedUrlCommand*)command
