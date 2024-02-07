@@ -59,7 +59,12 @@ CGFloat statusBarHeight()
 
 - (CGFloat)getAvailableInternalMemorySize:(CDVInvokedUrlCommand*)command {
 	long long freeSpace = [[[[NSFileManager defaultManager] attributesOfFileSystemForPath:NSHomeDirectory() error:nil] objectForKey:NSFileSystemFreeSize] longLongValue];
-	CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDouble:freeSpace];
+
+   NSDictionary *jsonObj = @{
+           @"freeSpace": freeSpace,
+       };
+
+	CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:jsonObj];
 	[self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 

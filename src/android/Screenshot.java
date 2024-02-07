@@ -22,6 +22,7 @@ import android.os.Environment;
 import android.os.StatFs;
 import android.provider.MediaStore;
 import android.util.Base64;
+import android.util.Log;
 import android.view.View;
 
 import org.apache.cordova.CallbackContext;
@@ -276,6 +277,9 @@ public class Screenshot extends CordovaPlugin {
         } else if (action.equals("getScreenshotAsURISync")) {
             getScreenshotAsURISync();
             return true;
+        } else if (action.equals("getAvailableInternalMemorySize")) {
+            getAvailableInternalMemorySize();
+            return true;
         }
         callbackContext.error("action not found");
         return false;
@@ -295,16 +299,18 @@ public class Screenshot extends CordovaPlugin {
     }
 
     // Returns free space in bytes.
-    // TODO: For now unused. Will be needed in the future. We can check the size of
-    // a file with length() and then compare to this the number returned by the
-    // function below.
-    public static long getAvailableInternalMemorySize() {
+    public void getAvailableInternalMemorySize() throws JSONException {
         File path = Environment.getDataDirectory();
         StatFs stat = new StatFs(path.getPath());
         long blockSize, availableBlocks;
         blockSize = stat.getBlockSizeLong();
         availableBlocks = stat.getAvailableBlocksLong();
 
-        return availableBlocks * blockSize;
+        JSONObject jsonRes = new JSONObject();
+        jsonRes.put("freeSpace", availableBlocks * blockSize);
+        PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
+        mCallbackContext.sendPluginResult(result);
+
+        return;
     }
 }
