@@ -12,6 +12,16 @@
 #import <Cordova/CDV.h>
 #import "Screenshot.h"
 
+@interface ContextInfo : NSObject
+
+@property (nonatomic, strong) NSString *callbackId;
+@property (nonatomic, strong) NSString *jpgPath;
+
+@end
+
+@implementation ContextInfo
+@end
+
 @implementation Screenshot
 
 @synthesize webView;
@@ -22,14 +32,13 @@ CGFloat statusBarHeight()
     return MIN(statusBarSize.width, statusBarSize.height);
 }
 
-- (UIImage *)getScreenshot
-{
-	UIWindow *keyWindow = [[UIApplication sharedApplication] keyWindow];
-	CGRect rect = [keyWindow bounds];
-	UIGraphicsBeginImageContextWithOptions(rect.size, YES, 0);
-	[keyWindow drawViewHierarchyInRect:keyWindow.bounds afterScreenUpdates:NO];
-	UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
-	UIGraphicsEndImageContext();
+- (UIImage *)getScreenshot {
+  UIWindow *keyWindow = [[UIApplication sharedApplication] keyWindow];
+  CGRect rect = [keyWindow bounds];
+  UIGraphicsBeginImageContextWithOptions(rect.size, YES, 0);
+  [keyWindow drawViewHierarchyInRect:keyWindow.bounds afterScreenUpdates:NO];
+  UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
+  UIGraphicsEndImageContext();
 
 	// cut the status bar from the screenshot
 	CGRect smallRect = CGRectMake (0,statusBarHeight()*img.scale,rect.size.width*img.scale,rect.size.height*img.scale);
@@ -48,6 +57,17 @@ CGFloat statusBarHeight()
 	return cropped;
 }
 
+- (void)getAvailableInternalMemorySize:(CDVInvokedUrlCommand*)command {
+	long long freeSpace = [[[[NSFileManager defaultManager] attributesOfFileSystemForPath:NSHomeDirectory() error:nil] objectForKey:NSFileSystemFreeSize] longLongValue];
+
+   NSDictionary *jsonObj = @{
+					 @"freeSpace": [NSNumber numberWithLong:freeSpace],
+       };
+
+	CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:jsonObj];
+	[self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
 - (void)saveScreenshot:(CDVInvokedUrlCommand*)command
 {
 	NSString *filename = [command.arguments objectAtIndex:2];
@@ -58,19 +78,14 @@ CGFloat statusBarHeight()
 
 	UIImage *image = [self getScreenshot];
 	NSData *imageData = UIImageJPEGRepresentation(image,[quality floatValue]);
-	[imageData writeToFile:jpgPath atomically:NO];
+    NSString *callbackId = command.callbackId;
 
-	CDVPluginResult* pluginResult = nil;
-	NSDictionary *jsonObj = [ [NSDictionary alloc]
-		initWithObjectsAndKeys :
-		jpgPath, @"filePath",
-		@"true", @"success",
-		nil
-	];
+	ContextInfo *contextInfo = [[ContextInfo alloc] init];
+    contextInfo.callbackId = callbackId;
+    contextInfo.jpgPath = jpgPath;
 
-	pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:jsonObj];
-	NSString* callbackId = command.callbackId;
-	[self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+	UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSaving:contextInfo:), (__bridge_retained void *)contextInfo);
+    [imageData writeToFile:jpgPath atomically:NO];
 }
 
 - (void) getScreenshotAsURI:(CDVInvokedUrlCommand*)command
@@ -84,5 +99,34 @@ CGFloat statusBarHeight()
 	};
 	CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:jsonObj];
 	[self.commandDelegate sendPluginResult:pluginResult callbackId:[command callbackId]];
+}
+
+- (void)image:(UIImage *)image didFinishSaving:(NSError *)error contextInfo:(void *)contextInfo
+{
+
+	ContextInfo *info = (__bridge_transfer ContextInfo *)contextInfo;
+
+    CDVPluginResult *pluginResult = nil;
+
+    if (error != nil)
+    {
+        NSDictionary *errorDict = @{
+            @"error": [error localizedDescription]
+        };
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:errorDict];
+    }
+    else
+    {
+        // Image saved successfully
+       NSDictionary *jsonObj = @{
+           @"filePath": info.jpgPath,
+		   @"callbackId": info.callbackId,
+           @"success": @"true"
+       };
+       pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:jsonObj];
+    }
+
+    // Send the plugin result
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:info.callbackId];
 }
 @end
