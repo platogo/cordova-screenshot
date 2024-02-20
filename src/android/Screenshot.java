@@ -127,9 +127,6 @@ public class Screenshot extends CordovaPlugin {
 
             } else {
                 File folder = new File(Environment.getExternalStorageDirectory(), "Pictures");
-                // File folder = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ?
-                // Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                // : mContext.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
                 if (!folder.exists()) {
                     folder.mkdirs();
                 }
@@ -259,8 +256,7 @@ public class Screenshot extends CordovaPlugin {
         mArgs = args;
 
         if (action.equals("saveScreenshot")) {
-            // Check if we are on Android 11 (Android R, sdk 29) or higher, because if we
-            // are then we need to check for permissions in a different way
+            // Check if we are on Android 11 (Android R, sdk 29) or higher
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 saveScreenshot();
             } else {
