@@ -76,14 +76,21 @@ CGFloat statusBarHeight()
 
 	UIImage *image = [self getScreenshot];
 	NSData *imageData = UIImageJPEGRepresentation(image, 100);
-	[imageData writeToFile:jpgPath atomically:NO];
 
+    NSString *callbackId = command.callbackId;
 	ContextInfo *contextInfo = [[ContextInfo alloc] init];
     contextInfo.callbackId = callbackId;
     contextInfo.jpgPath = jpgPath;
 
 	UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSaving:contextInfo:), (__bridge_retained void *)contextInfo);
     [imageData writeToFile:jpgPath atomically:NO];
+
+	ContextInfo *contextInfo = [[ContextInfo alloc] init];
+    contextInfo.callbackId = callbackId;
+    contextInfo.jpgPath = jpgPath;
+
+	pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:jsonObj];
+	[self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
 }
 
 - (void) getScreenshotAsURI:(CDVInvokedUrlCommand*)command
@@ -126,5 +133,16 @@ CGFloat statusBarHeight()
 
     // Send the plugin result
     [self.commandDelegate sendPluginResult:pluginResult callbackId:info.callbackId];
+}
+
+- (void)getAvailableInternalMemorySize:(CDVInvokedUrlCommand*)command {
+	long long freeSpace = [[[[NSFileManager defaultManager] attributesOfFileSystemForPath:NSHomeDirectory() error:nil] objectForKey:NSFileSystemFreeSize] longLongValue];
+
+   NSDictionary *jsonObj = @{
+					 @"freeSpace": [NSNumber numberWithLong:freeSpace],
+       };
+
+	CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:jsonObj];
+	[self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 @end
