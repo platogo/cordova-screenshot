@@ -32,17 +32,18 @@ CGFloat statusBarHeight()
     return MIN(statusBarSize.width, statusBarSize.height);
 }
 
-- (UIImage *)getScreenshot {
-  UIWindow *keyWindow = [[UIApplication sharedApplication] keyWindow];
-  CGRect rect = [keyWindow bounds];
-  UIGraphicsBeginImageContextWithOptions(rect.size, YES, 0);
-  [keyWindow drawViewHierarchyInRect:keyWindow.bounds afterScreenUpdates:NO];
-  UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
+- (UIImage *)getScreenshot
+{
+	UIWindow *keyWindow = [[UIApplication sharedApplication] keyWindow];
+	CGRect rect = [keyWindow bounds];
+	UIGraphicsBeginImageContextWithOptions(rect.size, YES, 0);
+	[keyWindow drawViewHierarchyInRect:keyWindow.bounds afterScreenUpdates:NO];
+	UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
+	UIGraphicsEndImageContext();
 
 	// cut the status bar from the screenshot
 	CGRect smallRect = CGRectMake (0,statusBarHeight()*img.scale,rect.size.width*img.scale,rect.size.height*img.scale);
- 
+
 	CGImageRef subImageRef = CGImageCreateWithImageInRect(img.CGImage, smallRect);
 	CGRect smallBounds = CGRectMake(0,0,CGImageGetWidth(subImageRef), CGImageGetHeight(subImageRef));
 
@@ -50,22 +51,11 @@ CGFloat statusBarHeight()
 	CGContextRef context = UIGraphicsGetCurrentContext();
 	CGContextDrawImage(context,smallBounds,subImageRef);
 	UIImage* cropped = [UIImage imageWithCGImage:subImageRef];
-	UIGraphicsEndImageContext();  
+	UIGraphicsEndImageContext();
 
 	CGImageRelease(subImageRef);
 
 	return cropped;
-}
-
-- (void)getAvailableInternalMemorySize:(CDVInvokedUrlCommand*)command {
-	long long freeSpace = [[[[NSFileManager defaultManager] attributesOfFileSystemForPath:NSHomeDirectory() error:nil] objectForKey:NSFileSystemFreeSize] longLongValue];
-
-   NSDictionary *jsonObj = @{
-					 @"freeSpace": [NSNumber numberWithLong:freeSpace],
-       };
-
-	CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:jsonObj];
-	[self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
 - (void)saveScreenshot:(CDVInvokedUrlCommand*)command
@@ -85,9 +75,13 @@ CGFloat statusBarHeight()
 	UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSaving:contextInfo:), (__bridge_retained void *)contextInfo);
     [imageData writeToFile:jpgPath atomically:NO];
 
-	ContextInfo *contextInfo = [[ContextInfo alloc] init];
-    contextInfo.callbackId = callbackId;
-    contextInfo.jpgPath = jpgPath;
+	CDVPluginResult* pluginResult = nil;
+	NSDictionary *jsonObj = [ [NSDictionary alloc]
+		initWithObjectsAndKeys :
+		jpgPath, @"filePath",
+		@"true", @"success",
+		nil
+	];
 
 	pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:jsonObj];
 	[self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
