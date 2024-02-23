@@ -8,6 +8,9 @@
  */
 package com.darktalker.cordova.screenshot;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Environment;
 import android.os.StatFs;
 
@@ -25,9 +28,13 @@ public class Screenshot extends CordovaPlugin {
     private JSONArray mArgs;
     private String mFileName;
 
-    private void takeAndSaveScreenshot(String fileName) {
+    protected final static String[] PERMISSIONS = { Manifest.permission.WRITE_EXTERNAL_STORAGE };
+    public static final int PERMISSION_DENIED_ERROR = 20;
+    public static final int SAVE_SCREENSHOT_SEC = 0;
+
+    private void takeAndSaveScreenshot(String fileName, Boolean shouldReturnBase64Uri) {
         ScreenshotSaver saver = new ScreenshotSaver(cordova, webView.getView(), fileName, mCallbackContext);
-        saver.takeScreenshot();
+        saver.takeScreenshot(shouldReturnBase64Uri);
     }
 
     public void saveScreenshot() throws JSONException {
@@ -36,7 +43,17 @@ public class Screenshot extends CordovaPlugin {
         super.cordova.getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                takeAndSaveScreenshot(mFileName);
+                takeAndSaveScreenshot(mFileName, false);
+            }
+        });
+    }
+
+    public void getScreenshotAsURI()  {
+
+        super.cordova.getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                takeAndSaveScreenshot(mFileName, true);
             }
         });
     }
@@ -49,14 +66,39 @@ public class Screenshot extends CordovaPlugin {
         mArgs = args;
 
         if (action.equals("saveScreenshot")) {
-            saveScreenshot();
+            // Check if we are on Android 11 (Android R, sdk 29) or higher
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                saveScreenshot();
+            } else {
+                if (PermissionHelper.hasPermission(this, PERMISSIONS[0])) {
+                    saveScreenshot();
+                } else {
+                    PermissionHelper.requestPermissions(this, SAVE_SCREENSHOT_SEC, PERMISSIONS);
+                }
+            }
+            return true;
+        } else if (action.equals("getScreenshotAsURI")) {
+            getScreenshotAsURI();
             return true;
         } else if (action.equals("getAvailableInternalMemorySize")) {
             getAvailableInternalMemorySize();
             return true;
         }
-        callbackContext.error("Android supports saveScreenshot only");
+        callbackContext.error("action not found");
         return false;
+    }
+
+    public void onRequestPermissionResult(int requestCode, String[] permissions,
+                                          int[] grantResults) throws JSONException {
+        for (int r : grantResults) {
+            if (r == PackageManager.PERMISSION_DENIED) {
+                mCallbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, PERMISSION_DENIED_ERROR));
+                return;
+            }
+        }
+        if (requestCode == SAVE_SCREENSHOT_SEC) {
+            saveScreenshot();
+        }
     }
 
     // Returns free space in bytes.
@@ -71,7 +113,7 @@ public class Screenshot extends CordovaPlugin {
         jsonRes.put("freeSpace", availableBlocks * blockSize);
         PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
         mCallbackContext.sendPluginResult(result);
-
-        return;
     }
+
+
 }

@@ -3,27 +3,26 @@ package com.darktalker.cordova.screenshot;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
-import android.os.StatFs;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.view.PixelCopy;
 import android.view.View;
+import android.util.Base64;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.PluginResult;
-import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 
 import android.annotation.TargetApi;
@@ -34,7 +33,14 @@ public class ScreenshotSaver {
     View view;
     String fileName;
     CallbackContext pluginContext;
-    private final String TAG = "ScreenshotSaver";
+
+    private void scanPhoto(String imageFileName) {
+        Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+        File f = new File(imageFileName);
+        Uri contentUri = Uri.fromFile(f);
+        mediaScanIntent.setData(contentUri);
+        this.cordova.getActivity().sendBroadcast(mediaScanIntent);
+    }
 
     public ScreenshotSaver(CordovaInterface cordova, View view, String fileName, CallbackContext pluginContext) {
         this.cordova = cordova;
@@ -45,45 +51,77 @@ public class ScreenshotSaver {
 
     public void saveScreenshot(Bitmap bitmap) {
         try {
-            // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
-            values.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg");
-            values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+                values.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg");
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
 
-            Context context = cordova.getContext();
-            ContentResolver resolver = context.getContentResolver();
+                Context context = cordova.getContext();
+                ContentResolver resolver = context.getContentResolver();
 
-            Uri imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-            try {
-                OutputStream fos = resolver.openOutputStream(imageUri);
+                Uri imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                try {
+                    OutputStream fos = resolver.openOutputStream(imageUri);
+
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+
+                    JSONObject jsonRes = new JSONObject();
+                    jsonRes.put("filePath", imageUri);
+                    PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
+                    pluginContext.sendPluginResult(result);
+                    fos.close();
+                } catch (Exception e) {
+                    pluginContext.error(e.getMessage());
+                }
+
+            } else {
+                File folder = new File(Environment.getExternalStorageDirectory(), "Pictures");
+                if (!folder.exists()) {
+                    folder.mkdirs();
+                }
+
+                File f = new File(folder, fileName + ".jpg");
+
+                FileOutputStream fos = new FileOutputStream(f);
 
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
 
                 JSONObject jsonRes = new JSONObject();
-                jsonRes.put("filePath", imageUri);
+                jsonRes.put("filePath", f.getAbsolutePath());
                 PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
                 pluginContext.sendPluginResult(result);
+
+                scanPhoto(f.getAbsolutePath());
                 fos.close();
-            } catch (Exception e) {
-                pluginContext.error(e.getMessage());
+            }
+        } catch (Exception e) {
+            pluginContext.error(e.getMessage());
+
+        }
+    }
+
+    private void getScreenshotAsURI(Bitmap bitmap) {
+        try {
+            ByteArrayOutputStream jpeg_data = new ByteArrayOutputStream();
+
+            if (bitmap.compress(Bitmap.CompressFormat.JPEG, 100, jpeg_data)) {
+                byte[] code = jpeg_data.toByteArray();
+                byte[] output = Base64.encode(code, Base64.NO_WRAP);
+                String js_out = new String(output);
+                js_out = "data:image/jpeg;base64," + js_out;
+                JSONObject jsonRes = new JSONObject();
+                jsonRes.put("URI", js_out);
+                PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
+                pluginContext.sendPluginResult(result);
+
+                js_out = null;
+                output = null;
+                code = null;
             }
 
-            // } else {
-            // File f = new
-            // File(cordova.getActivity().getApplicationContext().getFilesDir(),
-            // fileName + ".jpg");
-            //
-            // FileOutputStream fos = new FileOutputStream(f);
-            // bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-            // JSONObject jsonRes = new JSONObject();
-            // jsonRes.put("filePath", f.getAbsolutePath());
-            // PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
-            // pluginContext.sendPluginResult(result);
-            // fos.close();
-            // Log.d(TAG, "Screenshot saved as: " + f.getAbsolutePath());
-            //
-            // }
+            jpeg_data = null;
+
         } catch (Exception e) {
             pluginContext.error(e.getMessage());
 
@@ -91,7 +129,7 @@ public class ScreenshotSaver {
     }
 
     @TargetApi(26)
-    public void takeScreenshot() {
+    public void takeScreenshot(Boolean shouldReturnBase64Uri) {
         Bitmap bitmap = Bitmap.createBitmap(view.getWidth(), view.getHeight(), Bitmap.Config.ARGB_8888);
         int[] location = new int[2];
 
@@ -103,7 +141,12 @@ public class ScreenshotSaver {
             public void onPixelCopyFinished(int copyResult) {
 
                 if (copyResult == PixelCopy.SUCCESS) {
-                    saveScreenshot(bitmap);
+                    if (shouldReturnBase64Uri) {
+                        getScreenshotAsURI(bitmap);
+                    } else {
+                        saveScreenshot(bitmap);
+                    }
+
                 } else {
                     pluginContext.error("PixelCopy resulted with error: " + copyResult);
                 }

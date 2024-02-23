@@ -60,10 +60,10 @@ module.exports = {
   },
 
   getFreeSpaceBytes: function (callback) {
-		exec(function (res) {
-			callback && callback(null, res);
-		}, function (error) {
-			callback && callback(error);
-		}, "Screenshot", "getAvailableInternalMemorySize", []);
-	}
+    exec(function (res) {
+      callback && callback(null, res);
+    }, function (error) {
+      callback && callback(error);
+    }, "Screenshot", "getAvailableInternalMemorySize", []);
+  }
 };
