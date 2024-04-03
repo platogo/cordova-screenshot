@@ -70,11 +70,7 @@ public class Screenshot extends CordovaPlugin {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 saveScreenshot();
             } else {
-                if (PermissionHelper.hasPermission(this, PERMISSIONS[0])) {
-                    saveScreenshot();
-                } else {
-                    PermissionHelper.requestPermissions(this, SAVE_SCREENSHOT_SEC, PERMISSIONS);
-                }
+                saveScreenshot();
             }
             return true;
         } else if (action.equals("getScreenshotAsURI")) {
