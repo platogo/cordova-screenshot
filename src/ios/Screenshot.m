@@ -61,12 +61,22 @@ CGFloat statusBarHeight()
 - (void)saveScreenshot:(CDVInvokedUrlCommand*)command
 {
 	NSString *filename = [command.arguments objectAtIndex:0];
-	NSString *path = [NSString stringWithFormat:@"%@.jpg",filename];
-	NSString *jpgPath = [url(
-		for: 9,
-		in: localDomainMask,
-		create: true
-	) stringByAppendingPathComponent:path];
+	NSString *filenamepath = [NSString stringWithFormat:@"%@.jpg",filename];
+
+	NSString *path;
+	NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+	path = [[paths objectAtIndex:0] stringByAppendingPathComponent:@"screenshots" stringByAppendingPathComponent:filenamepath];
+	NSError *error;
+	if (![[NSFileManager defaultManager] fileExistsAtPath:path])	//Does directory already exist?
+	{
+		if (![[NSFileManager defaultManager] createDirectoryAtPath:path
+									   withIntermediateDirectories:NO
+														attributes:nil
+															 error:&error])
+		{
+			NSLog(@"Create directory error: %@", error);
+		}
+	}
 
 	UIImage *image = [self getScreenshot];
 	NSData *imageData = UIImageJPEGRepresentation(image, 100);
@@ -74,10 +84,10 @@ CGFloat statusBarHeight()
     NSString *callbackId = command.callbackId;
 	ContextInfo *contextInfo = [[ContextInfo alloc] init];
     contextInfo.callbackId = callbackId;
-    contextInfo.jpgPath = jpgPath;
+    contextInfo.jpgPath = path;
 
 	UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSaving:contextInfo:), (__bridge_retained void *)contextInfo);
-    [imageData writeToFile:jpgPath atomically:NO];
+    [imageData writeToFile:path atomically:NO];
 
 	CDVPluginResult* pluginResult = nil;
 	NSDictionary *jsonObj = [ [NSDictionary alloc]
