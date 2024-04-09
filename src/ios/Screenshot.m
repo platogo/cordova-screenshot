@@ -62,7 +62,7 @@ CGFloat statusBarHeight()
 {
 	NSString *filename = [command.arguments objectAtIndex:0];
 	NSString *path = [NSString stringWithFormat:@"%@.jpg",filename];
-	NSString *jpgPath = [NSTemporaryDirectory() stringByAppendingPathComponent:path];
+	NSString *jpgPath = [NSHomeDirectory() stringByAppendingPathComponent:path];
 
 	UIImage *image = [self getScreenshot];
 	NSData *imageData = UIImageJPEGRepresentation(image, 100);
