@@ -62,8 +62,25 @@ CGFloat statusBarHeight()
 {
 	NSString *filename = [command.arguments objectAtIndex:0];
 	NSString *path = [NSString stringWithFormat:@"%@.jpg",filename];
-	NSString *jpgPath = [NSTemporaryDirectory() stringByAppendingPathComponent:path];
-
+	NSString *jpgPath = [NSHomeDirectory() stringByAppendingString:@"/Library/NoCloud"];
+    
+    jpgPath = [jpgPath stringByAppendingPathComponent:@"screenshots"];
+    
+    NSError *error;
+    if (![[NSFileManager defaultManager] fileExistsAtPath:jpgPath])    //Does directory already exist?
+    {
+        if (![[NSFileManager defaultManager] createDirectoryAtPath:jpgPath
+                                       withIntermediateDirectories:NO
+                                                        attributes:nil
+                                                             error:&error])
+        {
+            NSLog(@"Create directory error: %@", error);
+        }
+    }
+    
+    jpgPath = [jpgPath stringByAppendingPathComponent:path];
+    NSLog(@"%@", jpgPath);
+    
 	UIImage *image = [self getScreenshot];
 	NSData *imageData = UIImageJPEGRepresentation(image, 100);
 
