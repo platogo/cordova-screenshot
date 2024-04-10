@@ -72,7 +72,6 @@ CGFloat statusBarHeight()
     contextInfo.callbackId = callbackId;
     contextInfo.jpgPath = jpgPath;
 
-	UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSaving:contextInfo:), (__bridge_retained void *)contextInfo);
     [imageData writeToFile:jpgPath atomically:NO];
 
 	CDVPluginResult* pluginResult = nil;
