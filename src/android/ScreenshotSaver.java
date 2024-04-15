@@ -1,6 +1,5 @@
 package com.darktalker.cordova.screenshot;
 
-import static com.xtreme.plugins.XtremePushPlugin.TAG;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -36,6 +35,8 @@ public class ScreenshotSaver {
     View view;
     String fileName;
     CallbackContext pluginContext;
+
+    private static final String TAG = "ScreenshotPlugin";
 
     private void scanPhoto(String imageFileName) {
         Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
