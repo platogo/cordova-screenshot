@@ -36,8 +36,6 @@ public class ScreenshotSaver {
     String fileName;
     CallbackContext pluginContext;
 
-    private static final String TAG = "ScreenshotPlugin";
-
     private void scanPhoto(String imageFileName) {
         Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
         File f = new File(imageFileName);
@@ -70,7 +68,6 @@ public class ScreenshotSaver {
                     PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
                     pluginContext.sendPluginResult(result);
                     fos.close();
-                    Log.d(TAG, "Screenshot saved as: " + storageDir.getAbsolutePath());
                 } catch (Exception e) {
                     pluginContext.error(e.getMessage());
                 }
