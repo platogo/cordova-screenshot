@@ -66,16 +66,7 @@ public class Screenshot extends CordovaPlugin {
         mArgs = args;
 
         if (action.equals("saveScreenshot")) {
-            // Check if we are on Android 11 (Android R, sdk 29) or higher
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                saveScreenshot();
-            } else {
-                if (PermissionHelper.hasPermission(this, PERMISSIONS[0])) {
-                    saveScreenshot();
-                } else {
-                    PermissionHelper.requestPermissions(this, SAVE_SCREENSHOT_SEC, PERMISSIONS);
-                }
-            }
+            saveScreenshot();
             return true;
         } else if (action.equals("getScreenshotAsURI")) {
             getScreenshotAsURI();

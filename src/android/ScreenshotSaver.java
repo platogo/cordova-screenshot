@@ -23,7 +23,8 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.OutputStream;
+import androidx.core.content.ContextCompat;
+
 
 import android.annotation.TargetApi;
 
@@ -52,22 +53,17 @@ public class ScreenshotSaver {
     public void saveScreenshot(Bitmap bitmap) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
-                values.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg");
-                values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES);
+                File storageDir = new File(ContextCompat.getExternalFilesDirs(cordova.getActivity().getApplicationContext(), null)[0] + File.separator + "screenshots", fileName + ".jpg");
 
-                Context context = cordova.getContext();
-                ContentResolver resolver = context.getContentResolver();
+                if (!storageDir.getParentFile().exists()) {
+                    storageDir.getParentFile().mkdirs();
+                }
 
-                Uri imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
                 try {
-                    OutputStream fos = resolver.openOutputStream(imageUri);
-
+                    FileOutputStream fos = new FileOutputStream(storageDir);
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-
                     JSONObject jsonRes = new JSONObject();
-                    jsonRes.put("filePath", imageUri);
+                    jsonRes.put("filePath", storageDir.getAbsolutePath());
                     PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
                     pluginContext.sendPluginResult(result);
                     fos.close();
