@@ -14,7 +14,6 @@ import android.provider.MediaStore;
 import android.view.PixelCopy;
 import android.view.View;
 import android.util.Base64;
-import android.util.Log;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
