@@ -62,18 +62,30 @@ CGFloat statusBarHeight()
 {
 	NSString *filename = [command.arguments objectAtIndex:0];
 	NSString *path = [NSString stringWithFormat:@"%@.jpg",filename];
-	NSString *jpgPath = [NSTemporaryDirectory() stringByAppendingPathComponent:path];
+	NSString *jpgPath = [NSHomeDirectory() stringByAppendingString:@"/Library/NoCloud"];
+
+	jpgPath = [jpgPath stringByAppendingPathComponent:@"screenshots"];
+
+	NSError *error;
+	if (![[NSFileManager defaultManager] fileExistsAtPath:jpgPath])
+	{
+		if (![[NSFileManager defaultManager] createDirectoryAtPath:jpgPath withIntermediateDirectories:NO attributes:nil error:&error])
+		{
+			NSLog(@"Create directory error: %@", error);
+		}
+	}
+
+	jpgPath = [jpgPath stringByAppendingPathComponent:path];
 
 	UIImage *image = [self getScreenshot];
 	NSData *imageData = UIImageJPEGRepresentation(image, 100);
 
-    NSString *callbackId = command.callbackId;
+	NSString *callbackId = command.callbackId;
 	ContextInfo *contextInfo = [[ContextInfo alloc] init];
-    contextInfo.callbackId = callbackId;
-    contextInfo.jpgPath = jpgPath;
+	contextInfo.callbackId = callbackId;
+	contextInfo.jpgPath = jpgPath;
 
-	UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSaving:contextInfo:), (__bridge_retained void *)contextInfo);
-    [imageData writeToFile:jpgPath atomically:NO];
+	[imageData writeToFile:jpgPath atomically:YES];
 
 	CDVPluginResult* pluginResult = nil;
 	NSDictionary *jsonObj = [ [NSDictionary alloc]
