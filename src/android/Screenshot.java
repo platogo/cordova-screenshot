@@ -8,9 +8,6 @@
  */
 package com.darktalker.cordova.screenshot;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Environment;
 import android.os.StatFs;
 
@@ -28,10 +25,6 @@ public class Screenshot extends CordovaPlugin {
     private JSONArray mArgs;
     private String mFileName;
 
-    protected final static String[] PERMISSIONS = { Manifest.permission.WRITE_EXTERNAL_STORAGE };
-    public static final int PERMISSION_DENIED_ERROR = 20;
-    public static final int SAVE_SCREENSHOT_SEC = 0;
-
     private void takeAndSaveScreenshot(String fileName, Boolean shouldReturnBase64Uri) {
         ScreenshotSaver saver = new ScreenshotSaver(cordova, webView.getView(), fileName, mCallbackContext);
         saver.takeScreenshot(shouldReturnBase64Uri);
@@ -48,7 +41,7 @@ public class Screenshot extends CordovaPlugin {
         });
     }
 
-    public void getScreenshotAsURI()  {
+    public void getScreenshotAsURI() {
 
         super.cordova.getActivity().runOnUiThread(new Runnable() {
             @Override
@@ -79,19 +72,6 @@ public class Screenshot extends CordovaPlugin {
         return false;
     }
 
-    public void onRequestPermissionResult(int requestCode, String[] permissions,
-                                          int[] grantResults) throws JSONException {
-        for (int r : grantResults) {
-            if (r == PackageManager.PERMISSION_DENIED) {
-                mCallbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, PERMISSION_DENIED_ERROR));
-                return;
-            }
-        }
-        if (requestCode == SAVE_SCREENSHOT_SEC) {
-            saveScreenshot();
-        }
-    }
-
     // Returns free space in bytes.
     public void getAvailableInternalMemorySize() throws JSONException {
         File path = Environment.getDataDirectory();
@@ -105,6 +85,5 @@ public class Screenshot extends CordovaPlugin {
         PluginResult result = new PluginResult(PluginResult.Status.OK, jsonRes);
         mCallbackContext.sendPluginResult(result);
     }
-
 
 }
